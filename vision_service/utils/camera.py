@@ -3,6 +3,7 @@ Threaded webcam capture that always serves the latest frame.
 Decouples capture rate from inference rate so inference never blocks reading.
 """
 import logging
+import sys
 import threading
 from typing import Optional
 
@@ -24,7 +25,9 @@ class CameraCapture:
         self._thread: Optional[threading.Thread] = None
 
     def start(self) -> "CameraCapture":
-        self._cap = cv2.VideoCapture(self._index)
+        # DirectShow backend prevents frame-grab hangs on Windows
+        backend = cv2.CAP_DSHOW if sys.platform == "win32" else cv2.CAP_ANY
+        self._cap = cv2.VideoCapture(self._index, backend)
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
         self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)   # minimise latency

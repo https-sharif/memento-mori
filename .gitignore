@@ -31,5 +31,20 @@ local_settings.py
 htmlcov/
 .tox/   
 
-INTEGRATION.md
-Fine-Tune.md
+# OS
+.DS_Store
+
+# Face embeddings — biometric data, never commit
+vision_service/storage/data/embeddings.json
+
+# Downloaded model weights — large files, re-downloaded on first run
+*.pt
+*.onnx
+
+# Training artefacts
+vision_service/train/data/
+vision_service/train/runs/
+
+# Internal docs
+vision_service/INTEGRATION.md
+vision_service/train/Fine-Tune.md

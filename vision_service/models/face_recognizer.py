@@ -81,31 +81,38 @@ class FaceRecognizer:
         if self._store is None or len(self._store) == 0:
             return _unknown_result(confidence=0.0, face_bbox=face_bbox)
 
-        best_name: Optional[str] = None
+        all_people = self._store.get_all().values()
+
+        # ── Pass 1: averaged embedding — O(n_people) ──────────────────
         best_score: float = -1.0
         best_data: Optional[dict] = None
 
-        for person_data in self._store.get_all().values():
+        for person_data in all_people:
+            avg_emb = person_data.get("avg_embedding")
+            if avg_emb is None:
+                continue
+            score = float(np.dot(emb, avg_emb))
+            if score > best_score:
+                best_score = score
+                best_data = person_data
+
+        if best_score >= threshold and best_data is not None:
+            return _recognized(best_data, best_score, face_bbox)
+
+        # ── Pass 2: individual embeddings — O(n_people × n_embeddings) ─
+        # Only reached when no avg match — catches edge-case poses that
+        # pulled the centroid away from the query.
+        for person_data in all_people:
             for stored_emb in person_data["embeddings"]:
-                # Stored embeddings may not be pre-normalised (older format)
                 se = stored_emb.astype(np.float32)
                 se = se / (np.linalg.norm(se) + 1e-6)
                 score = float(np.dot(emb, se))
                 if score > best_score:
                     best_score = score
-                    best_name = person_data["name"]
                     best_data = person_data
 
         if best_score >= threshold and best_data is not None:
-            return {
-                "recognized": True,
-                "name": best_data["name"],
-                "relationship": best_data.get("relationship", ""),
-                "note": best_data.get("note", ""),
-                "confidence": round(best_score, 4),
-                "face_detected": True,
-                "face_bbox": face_bbox,
-            }
+            return _recognized(best_data, best_score, face_bbox)
 
         return _unknown_result(confidence=round(best_score, 4), face_bbox=face_bbox)
 
@@ -116,6 +123,18 @@ class FaceRecognizer:
 
 def _bbox_area(bbox) -> float:
     return max(0.0, bbox[2] - bbox[0]) * max(0.0, bbox[3] - bbox[1])
+
+
+def _recognized(person_data: dict, score: float, face_bbox) -> Dict[str, Any]:
+    return {
+        "recognized": True,
+        "name": person_data["name"],
+        "relationship": person_data.get("relationship", ""),
+        "note": person_data.get("note", ""),
+        "confidence": round(score, 4),
+        "face_detected": True,
+        "face_bbox": face_bbox,
+    }
 
 
 def _no_face_result() -> Dict[str, Any]:

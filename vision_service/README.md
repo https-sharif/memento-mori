@@ -1,175 +1,100 @@
-# Vision Service
+# Vision Service — Internals
 
-Real-time face recognition + object detection for the dementia assistant hackathon.  
-Runs fully offline on a MacBook (CPU; Apple Silicon MPS/CoreML used automatically when available).
+Face recognition and object detection backend. Runs fully offline on a MacBook.
 
 ---
 
-## Quick Start
+## Run
 
 ```bash
-# 1. Create a virtual environment
 python3 -m venv .venv && source .venv/bin/activate
-
-# 2. Install dependencies (models auto-download on first run)
 pip install -r requirements.txt
-
-# 3. Start the server
 python main.py
-# or: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Open:
-- **Registration UI**: http://localhost:8000/static/register.html  
-- **API docs** (Swagger): http://localhost:8000/docs  
-- **WebSocket stream**: `ws://localhost:8000/ws`
-
----
-
-## API Reference
-
-### `POST /recognize`
-Recognize a face and detect objects in a single frame.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `image`   | file (optional) | JPEG/PNG file. Omit to capture from webcam. |
-
-**Response:**
-```json
-{
-  "person": {
-    "recognized": true,
-    "name": "Sarah",
-    "relationship": "Daughter",
-    "note": "Visits on weekends",
-    "confidence": 0.96,
-    "face_detected": true
-  },
-  "objects": [
-    { "label": "Water/Medicine Bottle", "confidence": 0.91 }
-  ],
-  "timestamp": 1234567890
-}
 ```
 
 ---
 
-### `POST /register`
-Register a new person from uploaded images (multipart/form-data).
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Person's name |
-| `relationship` | string | e.g. "Daughter", "Nurse" |
-| `note` | string (optional) | Free-text note |
-| `images` | file[] | 3–5 JPEG/PNG face images |
-
----
-
-### `POST /register/capture`
-Register from the live webcam (no file upload needed).
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | string | — | Person's name |
-| `relationship` | string | — | Relationship |
-| `note` | string | `""` | Optional note |
-| `count` | int | `5` | Number of frames to capture |
-| `interval` | float | `0.6` | Seconds between captures |
-
----
-
-### `GET /people`
-List all registered people.
-
-### `DELETE /people/{name}`
-Remove a person and their embeddings.
-
-### `GET /health`
-Liveness probe.
-
-### `WS /ws`
-WebSocket endpoint. Streams recognition results as JSON at ~1 s intervals (same schema as `/recognize`). Sends the cached last result between inference frames so clients always have fresh data.
-
-**JavaScript example:**
-```js
-const ws = new WebSocket('ws://localhost:8000/ws');
-ws.onmessage = (e) => {
-  const result = JSON.parse(e.data);
-  console.log(result.person.name, result.objects);
-};
-```
-
----
-
-## Architecture
+## Folder structure
 
 ```
 vision_service/
-├── main.py                  # FastAPI app, lifespan, background vision loop
-├── config.py                # All tunable settings (model paths, thresholds, …)
+├── main.py                  # app entry point, background vision loop
+├── config.py                # all settings in one place
 ├── models/
 │   ├── face_recognizer.py   # InsightFace / ArcFace wrapper
-│   └── object_detector.py   # YOLOv8n wrapper with care-object mapping
+│   └── object_detector.py   # YOLOv8 wrapper, two-model design
 ├── storage/
-│   ├── embedding_store.py   # JSON-backed in-memory embedding store
-│   └── data/                # embeddings.json stored here (auto-created)
+│   ├── embedding_store.py   # in-memory store backed by embeddings.json
+│   └── data/                # embeddings.json lives here
 ├── utils/
-│   ├── camera.py            # Threaded webcam capture
-│   └── image.py             # Decode / resize helpers
+│   ├── camera.py            # threaded webcam capture
+│   └── image.py             # decode / resize helpers
 ├── api/
-│   ├── recognize.py         # /recognize, /people, /health
-│   ├── register.py          # /register, /register/capture, DELETE /people/{name}
-│   └── websocket_handler.py # /ws + ConnectionManager
+│   ├── recognize.py         # POST /recognize, GET /people, GET /health
+│   ├── register.py          # POST /register, POST /register/capture, DELETE /people/{name}
+│   └── websocket_handler.py # WS /ws + connection manager
 ├── static/
-│   └── register.html        # Browser registration UI
-└── requirements.txt
-```
-
-### Vision loop
-
-```
-Camera thread (30 fps, daemon)
-     │  latest frame (shared, locked)
-     ▼
-Vision loop (asyncio, every ws_interval seconds)
-     │  run_in_executor (thread pool, non-blocking)
-     ├─► FaceRecognizer.recognize()   InsightFace ArcFace + cosine sim
-     └─► ObjectDetector.detect()      YOLOv8n → care-object filter
-          │
-          ▼
-     cache latest_result
-          │
-          ▼
-     ConnectionManager.broadcast()  → all /ws clients
+│   └── register.html        # face registration UI
+└── train/                   # custom model training (see Fine-Tune.md inside)
 ```
 
 ---
 
-## Configuration (`config.py`)
+## How it works
 
-| Setting | Default | Notes |
-|---------|---------|-------|
-| `camera_index` | `0` | Change if you have multiple cameras |
-| `face_model` | `buffalo_sc` | Swap to `buffalo_l` for higher accuracy |
-| `face_threshold` | `0.45` | Raise to reduce false positives |
-| `yolo_model` | `yolov8n.pt` | `yolov8s.pt` for better detection |
-| `object_confidence` | `0.50` | Lower to catch more objects |
-| `frame_skip` | `3` | Inference on every 3rd frame |
-| `ws_interval` | `1.0` | Seconds between WS broadcasts |
+**Face recognition**
+1. InsightFace (ArcFace, `buffalo_sc` model) detects faces and extracts a 512-float embedding per face
+2. On recognition, embedding is compared against the store using cosine similarity (dot product of normalised vectors)
+3. Two-pass lookup: averaged embedding first (fast), then individual embeddings if no match (thorough)
+4. Match threshold is `face_threshold` in `config.py` (default 0.45)
+
+**Object detection**
+- Base model: `yolov8n.pt` pretrained on COCO — filters to a care-relevant subset (bottles, cups, clocks, etc.)
+- Custom model (optional): fine-tuned on demo-specific classes (medicine bottle vs water bottle, glasses, cane)
+- When both are loaded, custom detections take priority; base model fills in everything else
+
+**Vision loop**
+- Camera thread reads frames at full speed (~30 fps) into a shared buffer
+- Async loop samples the latest frame every 100 ms for display, runs inference every `ws_interval` seconds (default 1 s)
+- Inference runs in a thread pool so it never blocks the async event loop
+- Result is broadcast to all connected WebSocket clients after each inference
 
 ---
 
-## Performance notes
+## Config (`config.py`)
 
-- **Apple Silicon**: CoreML execution provider is automatically selected for InsightFace; YOLOv8 uses MPS via PyTorch. Expect ~20–50 ms/frame total.
-- **Intel Mac / CPU-only**: ~100–200 ms/frame. Raise `ws_interval` to `2.0` and `frame_skip` to `5` if needed.
-- Embeddings are pre-normalised on write so cosine similarity is a single dot product.
-- `frame_skip` decouples the camera rate from inference rate — the camera always reads at full speed; inference only runs every Nth frame.
+```python
+face_model        = "buffalo_sc"   # swap to "buffalo_l" for higher accuracy
+face_threshold    = 0.45           # raise to reduce false positives
+yolo_model        = "yolov8n.pt"   # swap to "yolov8s.pt" for better detection
+custom_yolo_model = ""             # path to fine-tuned weights (see train/)
+object_confidence = 0.50
+ws_interval       = 1.0            # seconds between WebSocket pushes
+enable_ui         = True           # OpenCV window (press q to close)
+enable_terminal_log = True         # print results to terminal
+```
 
-## Limitations
+---
 
-- COCO (YOLOv8n) does not include "glasses" or "walking cane/stick" classes. A fine-tuned model would be needed for those specific objects.
-- Face recognition works best on frontal, well-lit faces. Register 5+ images for best results.
-- One face per frame is currently recognised (the largest detected face).
+## Embeddings storage
+
+Stored in `storage/data/embeddings.json`. Plain JSON — human-readable, no database needed.
+
+Structure: per person, a list of raw embeddings (preserved for fallback matching) and a pre-computed average embedding (used for fast lookup). Average is recomputed from the raw list on every write and on startup — it's never persisted separately.
+
+To wipe all registered faces: `rm storage/data/embeddings.json`
+
+---
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/recognize` | Image file or live webcam → recognition result |
+| `WS` | `/ws` | Live stream of results |
+| `POST` | `/register` | Register from uploaded images |
+| `POST` | `/register/capture` | Register from webcam (server-side) |
+| `GET` | `/people` | List registered people |
+| `DELETE` | `/people/{name}` | Remove a person |
+| `GET` | `/health` | Service + camera status |
+| `GET` | `/docs` | Swagger UI |
