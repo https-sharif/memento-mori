@@ -1,0 +1,40 @@
+# Custom demo dataset — only the classes you need for the hackathon.
+#
+# WORKFLOW:
+#   1. python collect_images.py <class_name>   ← run once per class
+#   2. Label all images (Roboflow or LabelImg — see README below)
+#   3. python train.py
+#   4. Update config.py:  custom_yolo_model = "train/runs/best.pt"
+#
+# HOW MANY IMAGES:
+#   - 40–60 images per class is enough for a demo
+#   - Include varied lighting, angles, backgrounds
+#   - For "medicine_bottle" vs "water_bottle": make sure both are in scene together
+#     in some shots so the model learns the distinction
+#
+# LABELING:
+#   Roboflow (browser, easiest):
+#     1. roboflow.com → New Project → Object Detection
+#     2. Upload your images from train/data/images/train/
+#     3. Draw boxes, assign class names below
+#     4. Export → YOLOv8 format → download zip → extract into train/data/
+#   LabelImg (desktop, offline):
+#     pip install labelImg
+#     labelImg train/data/images/train  train/data/labels/train
+
+path: ./data          # relative to this file; train.py sets it to absolute
+train: images/train
+val:   images/val
+
+nc: 9                 # ← update this if you add/remove classes
+
+names:
+  0: medicine_bottle  # pill bottle, blister pack, prescription bottle
+  1: water_bottle     # any clear/sports bottle that is NOT medicine
+  2: glasses          # eyeglasses / spectacles (not sunglasses)
+  3: walking_cane     # cane, walking stick, quad cane
+  4: keys             # house keys, key ring
+  5: book             # book, magazine, notebook — NOT phone or tablet
+  6: phone            # smartphone / mobile phone
+  7: laptop           # laptop computer
+  8: cup              # cup, mug, glass — replaces COCO confusion with bottle

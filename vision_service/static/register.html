@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Registration — Vision Service</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .container { width: 100%; max-width: 860px; padding: 2rem; }
+    h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    @media (max-width: 640px) { .layout { grid-template-columns: 1fr; } }
+
+    /* Camera */
+    .camera-wrap { position: relative; background: #1a1a1a; border-radius: 12px; overflow: hidden; aspect-ratio: 4/3; }
+    #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cam-overlay { position: absolute; inset: 0; border: 3px solid transparent; border-radius: 12px; transition: border-color 0.3s; pointer-events: none; }
+    .cam-overlay.capturing { border-color: #22c55e; }
+
+    .thumb-strip { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    .thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 2px solid #333; }
+    .thumb.ok { border-color: #22c55e; }
+
+    /* Form */
+    .panel { background: #1a1a1a; border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+    label { font-size: 0.8rem; color: #aaa; display: block; margin-bottom: 0.3rem; }
+    input, textarea { width: 100%; padding: 0.6rem 0.8rem; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+    input:focus, textarea:focus { border-color: #6366f1; }
+    textarea { resize: vertical; min-height: 60px; }
+
+    .progress { font-size: 0.85rem; color: #888; }
+    .progress span { color: #22c55e; font-weight: 600; }
+
+    button { padding: 0.7rem 1.2rem; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    #captureBtn { background: #6366f1; color: #fff; width: 100%; }
+    #submitBtn  { background: #22c55e; color: #000; width: 100%; }
+    #resetBtn   { background: #3a3a3a; color: #ccc; width: 100%; }
+
+    .status { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9rem; display: none; }
+    .status.success { background: #14532d; color: #86efac; display: block; }
+    .status.error   { background: #450a0a; color: #fca5a5; display: block; }
+    .status.info    { background: #1e3a5f; color: #93c5fd; display: block; }
+
+    .people-list { margin-top: 2rem; }
+    .people-list h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+    .person-card { background: #1a1a1a; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .person-info { font-size: 0.9rem; }
+    .person-info .rel { color: #888; font-size: 0.8rem; }
+    .del-btn { background: transparent; border: 1px solid #3a3a3a; color: #f87171; padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 6px; }
+    .del-btn:hover { background: #450a0a; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Register New Person</h1>
+  <p class="subtitle">Capture 3–5 photos, fill in the details, then click Register.</p>
+
+  <div class="layout">
+    <!-- Camera column -->
+    <div>
+      <div class="camera-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="cam-overlay" id="camOverlay"></div>
+      </div>
+      <canvas id="canvas" style="display:none"></canvas>
+      <div class="thumb-strip" id="thumbStrip"></div>
+    </div>
+
+    <!-- Form column -->
+    <div class="panel">
+      <div>
+        <label for="nameInput">Full Name *</label>
+        <input id="nameInput" type="text" placeholder="e.g. Sarah" required />
+      </div>
+      <div>
+        <label for="relInput">Relationship *</label>
+        <input id="relInput" type="text" placeholder="e.g. Daughter, Nurse, Friend" required />
+      </div>
+      <div>
+        <label for="noteInput">Optional Note</label>
+        <textarea id="noteInput" placeholder="e.g. Visits on weekends"></textarea>
+      </div>
+
+      <p class="progress">Photos captured: <span id="countLabel">0</span> / 5</p>
+
+      <button id="captureBtn">📸 Capture Photo</button>
+      <button id="submitBtn" disabled>✅ Register Person</button>
+      <button id="resetBtn">↺ Reset</button>
+
+      <div id="statusMsg" class="status"></div>
+    </div>
+  </div>
+
+  <!-- People list -->
+  <div class="people-list">
+    <h2>Registered People</h2>
+    <div id="peopleList"><em style="color:#888">Loading…</em></div>
+  </div>
+</div>
+
+<script>
+const MAX_PHOTOS = 5;
+const API = '';   // same origin
+
+let capturedBlobs = [];
+let stream = null;
+
+const video       = document.getElementById('video');
+const canvas      = document.getElementById('canvas');
+const camOverlay  = document.getElementById('camOverlay');
+const thumbStrip  = document.getElementById('thumbStrip');
+const countLabel  = document.getElementById('countLabel');
+const captureBtn  = document.getElementById('captureBtn');
+const submitBtn   = document.getElementById('submitBtn');
+const resetBtn    = document.getElementById('resetBtn');
+const statusMsg   = document.getElementById('statusMsg');
+
+// ── Camera ──────────────────────────────────────────────────────────
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+    video.srcObject = stream;
+  } catch (e) {
+    showStatus('Camera access denied. Grant permission and refresh.', 'error');
+  }
+}
+
+function flashOverlay() {
+  camOverlay.classList.add('capturing');
+  setTimeout(() => camOverlay.classList.remove('capturing'), 300);
+}
+
+captureBtn.addEventListener('click', () => {
+  if (capturedBlobs.length >= MAX_PHOTOS) return;
+
+  flashOverlay();
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  canvas.toBlob(blob => {
+    capturedBlobs.push(blob);
+    const thumb = document.createElement('img');
+    thumb.className = 'thumb ok';
+    thumb.src = URL.createObjectURL(blob);
+    thumbStrip.appendChild(thumb);
+
+    countLabel.textContent = capturedBlobs.length;
+    if (capturedBlobs.length >= MAX_PHOTOS) captureBtn.disabled = true;
+    if (capturedBlobs.length >= 3) submitBtn.disabled = false;
+  }, 'image/jpeg', 0.85);
+});
+
+// ── Register ─────────────────────────────────────────────────────────
+submitBtn.addEventListener('click', async () => {
+  const name = document.getElementById('nameInput').value.trim();
+  const rel  = document.getElementById('relInput').value.trim();
+  const note = document.getElementById('noteInput').value.trim();
+
+  if (!name || !rel) { showStatus('Name and relationship are required.', 'error'); return; }
+  if (capturedBlobs.length < 1) { showStatus('Capture at least one photo first.', 'error'); return; }
+
+  submitBtn.disabled = true;
+  showStatus('Uploading…', 'info');
+
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('relationship', rel);
+  fd.append('note', note);
+  capturedBlobs.forEach((b, i) => fd.append('images', b, `face_${i}.jpg`));
+
+  try {
+    const res = await fetch(`${API}/register`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (res.ok) {
+      showStatus(`✅ ${name} registered with ${data.embeddings_stored} embedding(s).`, 'success');
+      resetForm();
+      loadPeople();
+    } else {
+      showStatus(`Error: ${data.detail || JSON.stringify(data)}`, 'error');
+      submitBtn.disabled = false;
+    }
+  } catch (e) {
+    showStatus(`Network error: ${e.message}`, 'error');
+    submitBtn.disabled = false;
+  }
+});
+
+// ── Reset ─────────────────────────────────────────────────────────────
+resetBtn.addEventListener('click', resetForm);
+
+function resetForm() {
+  capturedBlobs = [];
+  thumbStrip.innerHTML = '';
+  countLabel.textContent = '0';
+  captureBtn.disabled  = false;
+  submitBtn.disabled   = true;
+  document.getElementById('nameInput').value = '';
+  document.getElementById('relInput').value  = '';
+  document.getElementById('noteInput').value = '';
+  hideStatus();
+}
+
+// ── People list ──────────────────────────────────────────────────────
+async function loadPeople() {
+  const container = document.getElementById('peopleList');
+  try {
+    const res  = await fetch(`${API}/people`);
+    const data = await res.json();
+    const people = data.people || [];
+    if (people.length === 0) {
+      container.innerHTML = '<em style="color:#888">No one registered yet.</em>';
+      return;
+    }
+    container.innerHTML = people.map(p => `
+      <div class="person-card">
+        <div class="person-info">
+          <strong>${p.name}</strong>
+          <div class="rel">${p.relationship}${p.note ? ' · ' + p.note : ''} · ${p.num_embeddings} photo(s)</div>
+        </div>
+        <button class="del-btn" onclick="deletePerson('${p.name}')">Delete</button>
+      </div>`).join('');
+  } catch {
+    container.innerHTML = '<em style="color:#f87171">Could not load people list.</em>';
+  }
+}
+
+async function deletePerson(name) {
+  if (!confirm(`Delete ${name}?`)) return;
+  const res = await fetch(`${API}/people/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  if (res.ok) loadPeople();
+  else alert('Delete failed.');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function showStatus(msg, type) {
+  statusMsg.textContent = msg;
+  statusMsg.className   = `status ${type}`;
+}
+function hideStatus() {
+  statusMsg.className = 'status';
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────
+startCamera();
+loadPeople();
+</script>
+</body>
+</html>

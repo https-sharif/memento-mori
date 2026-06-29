@@ -1,0 +1,17 @@
+# Core API
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Vision models
+insightface>=0.7.3
+onnxruntime>=1.16.0          # CPU inference (works on all platforms)
+ultralytics>=8.0.0           # YOLOv8 nano
+
+# Image processing
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+pillow>=10.0.0
+
+# Utilities
+websockets>=11.0
