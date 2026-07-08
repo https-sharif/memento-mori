@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Person — Dementia Assistant</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --line: #d9e1ee;
+      --text: #152033;
+      --muted: #66758f;
+      --accent: #2563eb;
+      --accent-2: #0f766e;
+      --error: #b91c1c;
+      --shadow: 0 14px 40px rgba(21, 32, 51, 0.08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      border-radius: 14px;
+      padding: 11px 14px;
+      cursor: pointer;
+      text-decoration: none;
+      font: inherit;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      background: #f8fbff;
+    }
+
+    .btn.primary {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 0.92rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+
+    .card-body { padding: 18px; }
+
+    .camera-wrap {
+      position: relative;
+      background: #edf2f7;
+      border-radius: 18px;
+      overflow: hidden;
+      aspect-ratio: 4 / 3;
+      border: 1px solid var(--line);
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #edf2f7;
+    }
+
+    .cam-overlay {
+      position: absolute;
+      inset: 0;
+      border: 3px solid transparent;
+      border-radius: 18px;
+      transition: border-color 0.3s;
+      pointer-events: none;
+    }
+
+    .cam-overlay.capturing {
+      border-color: #22c55e;
+    }
+
+    .textarea, input {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      padding: 12px 14px;
+      outline: none;
+      font: inherit;
+    }
+
+    .textarea:focus, input:focus {
+      border-color: rgba(125, 211, 252, 0.45);
+      box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.12);
+    }
+
+    .textarea {
+      resize: vertical;
+      min-height: 86px;
+      line-height: 1.5;
+    }
+
+    .thumb-strip {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .thumb {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid #d7dde8;
+    }
+
+    .thumb.ok { border-color: #22c55e; }
+
+    .status {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      display: none;
+      margin-top: 12px;
+    }
+
+    .status.success { background: #e6f7ee; color: #166534; display: block; }
+    .status.error   { background: #fee2e2; color: #991b1b; display: block; }
+    .status.info    { background: #eff6ff; color: #1d4ed8; display: block; }
+
+    .progress { font-size: 0.85rem; color: #7a8698; }
+    .progress span { color: #0f766e; font-weight: 700; }
+
+    button {
+      padding: 0.7rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      font: inherit;
+    }
+
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    #captureBtn { background: #2563eb; color: #fff; width: 100%; }
+    #submitBtn  { background: #22c55e; color: #000; width: 100%; }
+    #resetBtn   { background: #e5e7eb; color: #152033; width: 100%; }
+
+    .people-list { margin-top: 18px; }
+    .people-list h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+    .person-card {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--line);
+    }
+    .person-info { font-size: 0.92rem; }
+    .person-info .rel { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+    .del-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: #b91c1c;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.8rem;
+      border-radius: 10px;
+    }
+    .del-btn:hover { background: #fff1f2; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1 class="title">Register person</h1>
+      <div class="controls" style="margin-top: 12px;">
+        <p class="small" style="margin: 0;">Add a familiar face for the vision service.</p>
+        <a class="btn primary" href="index.html">Back home</a>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card">
+        <div class="card-head">
+          <h2 class="card-title">Camera capture</h2>
+          <span class="small">Take 3 to 5 clear photos</span>
+        </div>
+        <div class="card-body">
+          <div class="camera-wrap">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="cam-overlay" id="camOverlay"></div>
+          </div>
+          <canvas id="canvas" style="display:none"></canvas>
+          <div class="thumb-strip" id="thumbStrip"></div>
+          <p class="progress" style="margin-top: 12px;">Photos captured: <span id="countLabel">0</span> / 5</p>
+          <button id="captureBtn">Capture photo</button>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2 class="card-title">Person details</h2>
+          <span class="small">Used by the home page</span>
+        </div>
+        <div class="card-body">
+          <div style="margin-bottom: 12px;">
+            <label for="nameInput" class="small">Full name *</label>
+            <input id="nameInput" type="text" placeholder="e.g. Sarah" required />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label for="relInput" class="small">Relationship *</label>
+            <input id="relInput" type="text" placeholder="e.g. Daughter, Nurse, Friend" required />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label for="noteInput" class="small">Optional note</label>
+            <textarea id="noteInput" class="textarea" placeholder="e.g. Visits on weekends"></textarea>
+          </div>
+
+          <button id="submitBtn" disabled>Register person</button>
+          <button id="resetBtn" style="margin-top: 10px;">Reset</button>
+          <div id="statusMsg" class="status"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="people-list card" style="margin-top: 18px;">
+      <div class="card-head">
+        <h2 class="card-title">Registered people</h2>
+        <span class="small">Current roster</span>
+      </div>
+      <div class="card-body">
+        <div id="peopleList"><em style="color:#888">Loading…</em></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const MAX_PHOTOS = 5;
+    const API = 'http://localhost:8000';
+
+    let capturedBlobs = [];
+    let stream = null;
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const camOverlay = document.getElementById('camOverlay');
+    const thumbStrip = document.getElementById('thumbStrip');
+    const countLabel = document.getElementById('countLabel');
+    const captureBtn = document.getElementById('captureBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const statusMsg = document.getElementById('statusMsg');
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+        video.srcObject = stream;
+      } catch (e) {
+        showStatus('Camera access denied. Grant permission and refresh.', 'error');
+      }
+    }
+
+    function flashOverlay() {
+      camOverlay.classList.add('capturing');
+      setTimeout(() => camOverlay.classList.remove('capturing'), 300);
+    }
+
+    captureBtn.addEventListener('click', () => {
+      if (capturedBlobs.length >= MAX_PHOTOS) return;
+
+      flashOverlay();
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+
+      canvas.toBlob(blob => {
+        capturedBlobs.push(blob);
+        const thumb = document.createElement('img');
+        thumb.className = 'thumb ok';
+        thumb.src = URL.createObjectURL(blob);
+        thumbStrip.appendChild(thumb);
+
+        countLabel.textContent = capturedBlobs.length;
+        if (capturedBlobs.length >= MAX_PHOTOS) captureBtn.disabled = true;
+        if (capturedBlobs.length >= 3) submitBtn.disabled = false;
+      }, 'image/jpeg', 0.85);
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      const name = document.getElementById('nameInput').value.trim();
+      const rel = document.getElementById('relInput').value.trim();
+      const note = document.getElementById('noteInput').value.trim();
+
+      if (!name || !rel) { showStatus('Name and relationship are required.', 'error'); return; }
+      if (capturedBlobs.length < 1) { showStatus('Capture at least one photo first.', 'error'); return; }
+
+      submitBtn.disabled = true;
+      showStatus('Uploading…', 'info');
+
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('relationship', rel);
+      fd.append('note', note);
+      capturedBlobs.forEach((b, i) => fd.append('images', b, `face_${i}.jpg`));
+
+      try {
+        const res = await fetch(`${API}/register`, { method: 'POST', body: fd });
+        const data = await res.json();
+        if (res.ok) {
+          showStatus(`Registered ${name} with ${data.embeddings_stored} embedding(s).`, 'success');
+          resetForm();
+          loadPeople();
+        } else {
+          showStatus(`Error: ${data.detail || JSON.stringify(data)}`, 'error');
+          submitBtn.disabled = false;
+        }
+      } catch (e) {
+        showStatus(`Network error: ${e.message}`, 'error');
+        submitBtn.disabled = false;
+      }
+    });
+
+    resetBtn.addEventListener('click', resetForm);
+
+    function resetForm() {
+      capturedBlobs = [];
+      thumbStrip.innerHTML = '';
+      countLabel.textContent = '0';
+      captureBtn.disabled = false;
+      submitBtn.disabled = true;
+      document.getElementById('nameInput').value = '';
+      document.getElementById('relInput').value = '';
+      document.getElementById('noteInput').value = '';
+      hideStatus();
+    }
+
+    async function loadPeople() {
+      const container = document.getElementById('peopleList');
+      try {
+        const res = await fetch(`${API}/people`);
+        const data = await res.json();
+        const people = data.people || [];
+        if (people.length === 0) {
+          container.innerHTML = '<em style="color:#888">No one registered yet.</em>';
+          return;
+        }
+        container.innerHTML = people.map(p => `
+          <div class="person-card">
+            <div class="person-info">
+              <strong>${p.name}</strong>
+              <div class="rel">${p.relationship}${p.note ? ' · ' + p.note : ''} · ${p.num_embeddings} photo(s)</div>
+            </div>
+            <button class="del-btn" onclick="deletePerson('${p.name}')">Delete</button>
+          </div>`).join('');
+      } catch {
+        container.innerHTML = '<em style="color:#f87171">Could not load people list.</em>';
+      }
+    }
+
+    async function deletePerson(name) {
+      if (!confirm(`Delete ${name}?`)) return;
+      const res = await fetch(`${API}/people/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (res.ok) loadPeople();
+      else alert('Delete failed.');
+    }
+
+    function showStatus(msg, type) {
+      statusMsg.textContent = msg;
+      statusMsg.className = `status ${type}`;
+    }
+    function hideStatus() {
+      statusMsg.className = 'status';
+    }
+
+    startCamera();
+    loadPeople();
+  </script>
+</body>
+</html>

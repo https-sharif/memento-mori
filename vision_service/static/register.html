@@ -6,7 +6,7 @@
   <title>Face Registration — Vision Service</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fb; color: #152033; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
     .container { width: 100%; max-width: 860px; padding: 2rem; }
     h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: 0.25rem; }
     .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
@@ -14,29 +14,29 @@
     @media (max-width: 640px) { .layout { grid-template-columns: 1fr; } }
 
     /* Camera */
-    .camera-wrap { position: relative; background: #1a1a1a; border-radius: 12px; overflow: hidden; aspect-ratio: 4/3; }
+    .camera-wrap { position: relative; background: #ffffff; border-radius: 12px; overflow: hidden; aspect-ratio: 4/3; }
     #video { width: 100%; height: 100%; object-fit: cover; display: block; }
     .cam-overlay { position: absolute; inset: 0; border: 3px solid transparent; border-radius: 12px; transition: border-color 0.3s; pointer-events: none; }
-    .cam-overlay.capturing { border-color: #22c55e; }
+    .cam-overlay.capturing { border-color: #0f766e; }
 
     .thumb-strip { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
     .thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 2px solid #333; }
-    .thumb.ok { border-color: #22c55e; }
+    .thumb.ok { border-color: #0f766e; }
 
     /* Form */
-    .panel { background: #1a1a1a; border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+    .panel { background: #ffffff; border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
     label { font-size: 0.8rem; color: #aaa; display: block; margin-bottom: 0.3rem; }
-    input, textarea { width: 100%; padding: 0.6rem 0.8rem; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
-    input:focus, textarea:focus { border-color: #6366f1; }
+    input, textarea { width: 100%; padding: 0.6rem 0.8rem; background: #d9e1ee; border: 1px solid #3a3a3a; border-radius: 8px; color: #152033; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+    input:focus, textarea:focus { border-color: #2563eb; }
     textarea { resize: vertical; min-height: 60px; }
 
     .progress { font-size: 0.85rem; color: #888; }
-    .progress span { color: #22c55e; font-weight: 600; }
+    .progress span { color: #0f766e; font-weight: 600; }
 
     button { padding: 0.7rem 1.2rem; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-    #captureBtn { background: #6366f1; color: #fff; width: 100%; }
-    #submitBtn  { background: #22c55e; color: #000; width: 100%; }
+    #captureBtn { background: #2563eb; color: #fff; width: 100%; }
+    #submitBtn  { background: #0f766e; color: #000; width: 100%; }
     #resetBtn   { background: #3a3a3a; color: #ccc; width: 100%; }
 
     .status { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9rem; display: none; }
@@ -46,7 +46,7 @@
 
     .people-list { margin-top: 2rem; }
     .people-list h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
-    .person-card { background: #1a1a1a; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .person-card { background: #ffffff; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
     .person-info { font-size: 0.9rem; }
     .person-info .rel { color: #888; font-size: 0.8rem; }
     .del-btn { background: transparent; border: 1px solid #3a3a3a; color: #f87171; padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 6px; }

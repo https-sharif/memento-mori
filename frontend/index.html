@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dementia Assistant</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --panel-strong: #ffffff;
+      --line: #d9e1ee;
+      --text: #152033;
+      --muted: #66758f;
+      --accent: #2563eb;
+      --accent-2: #0f766e;
+      --warn: #b45309;
+      --error: #b91c1c;
+      --shadow: 0 14px 40px rgba(21, 32, 51, 0.08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 0.92rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+
+    .card-body { padding: 18px; }
+
+    .scene {
+      min-height: 360px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .memory {
+      border-radius: 18px;
+      padding: 18px;
+      background: #f8fbff;
+      border: 1px solid #dbe7f6;
+    }
+
+    .memory h2 {
+      margin: 0 0 8px;
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .memory p {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.65;
+      color: var(--text);
+    }
+
+    .voice {
+      border-radius: 18px;
+      padding: 16px 18px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+    }
+
+    .voice label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .voice p {
+      margin: 0;
+      line-height: 1.7;
+      font-size: 1rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 560px) {
+      .stats { grid-template-columns: 1fr; }
+    }
+
+    .stat {
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      padding: 14px;
+      min-height: 96px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 10px;
+    }
+
+    .stat .value {
+      font-size: 1.05rem;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .object-chip {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .object-chip strong {
+      display: block;
+      font-size: 0.98rem;
+    }
+
+    .object-chip span {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    input {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      padding: 12px 14px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: rgba(125, 211, 252, 0.45);
+      box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.12);
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      border-radius: 14px;
+      padding: 11px 14px;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      background: #f8fbff;
+    }
+
+    .btn.primary {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      margin-bottom: 20px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 560px) {
+      .mini-grid { grid-template-columns: 1fr; }
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .textarea {
+      width: 100%;
+      min-height: 110px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      padding: 12px 14px;
+      outline: none;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .textarea:focus {
+      border-color: rgba(125, 211, 252, 0.45);
+      box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.12);
+    }
+
+    .answer-box {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #ffffff;
+      padding: 14px;
+      min-height: 104px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(21, 32, 51, 0.56);
+      z-index: 50;
+    }
+
+    .overlay.open {
+      display: flex;
+    }
+
+    .overlay-panel {
+      width: 40%;
+      max-height: 72vh;
+      display: flex;
+      flex-direction: column;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 80px rgba(21, 32, 51, 0.2);
+    }
+
+    .overlay-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .camera-stage {
+      position: relative;
+      background: #edf2f7;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .camera-frame {
+      width: 100%;
+      display: block;
+      height: min(48vh, 320px);
+      object-fit: cover;
+      background: #edf2f7;
+    }
+
+    .camera-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: min(48vh, 320px);
+      color: var(--muted);
+      font-size: 0.95rem;
+      text-align: center;
+      padding: 18px;
+    }
+
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header style="margin-bottom: 18px;">
+      <h1 class="title">Dementia Assistant</h1>
+      <div class="controls" style="margin-top: 12px; align-items: center;">
+        <p class="small" id="wsStatus" style="margin: 0;">Connecting to vision service…</p>
+        <a class="btn primary" href="http://localhost:8000/static/register.html">Register person</a>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card scene">
+        <div class="card-head">
+          <h2 class="card-title">Live scene</h2>
+          <span class="small" id="timestampLabel">Waiting for data</span>
+        </div>
+        <div class="card-body">
+          <div class="memory">
+            <h2 id="personName">No scene yet</h2>
+            <p id="personSummary">Connects to the vision service websocket and updates automatically.</p>
+            <div class="stats" style="margin-top: 14px;">
+              <div class="stat">
+                <div class="label">Recognition</div>
+                <div class="value" id="recognitionValue">Unknown</div>
+              </div>
+              <div class="stat">
+                <div class="label">Relationship</div>
+                <div class="value" id="relationshipValue">--</div>
+              </div>
+              <div class="stat">
+                <div class="label">Confidence</div>
+                <div class="value" id="confidenceValue">--</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </article>
+
+      <aside class="card">
+        <div class="card-head">
+          <h2 class="card-title">Caretaker workspace</h2>
+          <span class="small" id="objectCount">0 items</span>
+        </div>
+        <div class="card-body">
+          <div class="voice">
+            <label>Camera</label>
+            <div class="controls" style="margin-top: 0;">
+              <button class="btn" id="cameraBtn">View camera</button>
+            </div>
+          </div>
+
+          <div class="voice" style="margin-top: 14px;">
+            <label>Ask a question</label>
+            <textarea id="caretakerInput" class="textarea" placeholder="Type your question here..."></textarea>
+            <div class="controls">
+              <button class="btn primary" id="askBtn">Send</button>
+            </div>
+            <div class="answer-box" id="llmResponse" style="margin-top: 12px;">Waiting for advice.</div>
+          </div>
+
+          <div style="margin-top: 14px;">
+            <div class="section-title">Visible objects</div>
+            <div class="list" id="objectList">
+              <div class="small">Nothing detected yet.</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div id="cameraOverlay" class="overlay" aria-hidden="true">
+    <div class="overlay-panel">
+      <div class="overlay-head">
+        <strong>Live camera</strong>
+        <div class="controls" style="margin-top: 0;">
+          <span class="small">Updated <strong id="sceneAge">--</strong></span>
+          <button class="btn" id="closeCameraBtn">Close</button>
+        </div>
+      </div>
+      <div class="camera-stage">
+        <img id="cameraFrame" class="camera-frame" alt="Live camera feed" />
+        <div id="cameraEmpty" class="camera-empty">Camera feed will appear here.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const VISION_API_BASE = "http://localhost:8000";
+    const VISION_WS_URL = "ws://localhost:8000/ws";
+    const VISION_FRAME_URL = "http://localhost:8000/frame";
+    const LLM_LATEST_URL = "http://localhost:8001/latest";
+    const LLM_ASK_URL = "http://localhost:8001/ask";
+
+    const wsStatus = document.getElementById("wsStatus");
+    const sceneAge = document.getElementById("sceneAge");
+    const timestampLabel = document.getElementById("timestampLabel");
+    const personName = document.getElementById("personName");
+    const personSummary = document.getElementById("personSummary");
+    const recognitionValue = document.getElementById("recognitionValue");
+    const relationshipValue = document.getElementById("relationshipValue");
+    const confidenceValue = document.getElementById("confidenceValue");
+    const objectList = document.getElementById("objectList");
+    const objectCount = document.getElementById("objectCount");
+    const caretakerInput = document.getElementById("caretakerInput");
+    const askBtn = document.getElementById("askBtn");
+    const llmResponse = document.getElementById("llmResponse");
+    const patientListenStatus = document.getElementById("patientListenStatus");
+    const patientTranscript = document.getElementById("patientTranscript");
+    const cameraFrame = document.getElementById("cameraFrame");
+    const cameraEmpty = document.getElementById("cameraEmpty");
+    const cameraBtn = document.getElementById("cameraBtn");
+    const cameraOverlay = document.getElementById("cameraOverlay");
+    const closeCameraBtn = document.getElementById("closeCameraBtn");
+
+    let socket = null;
+    let reconnectTimer = null;
+    let latestSceneAt = null;
+    let latestVisionScene = null;
+    let lastVisionSignature = "";
+    let lastLlmSignature = "";
+    let cameraTimer = null;
+    let cameraFrameUrl = "";
+    let cameraVisible = false;
+    let speechRecognition = null;
+    let voiceRestartTimer = null;
+    let lastVoiceQuestionKey = "";
+    let lastVoiceQuestionText = "";
+    let questionInFlight = false;
+    let currentSceneKey = "";
+
+    function setStatus(state, text) {
+      wsStatus.textContent = text;
+      wsStatus.style.color = state === "error" ? "var(--error)" : state === "ok" ? "var(--accent-2)" : "var(--muted)";
+    }
+
+    function updateAge() {
+      if (!latestSceneAt) {
+        sceneAge.textContent = "--";
+        return;
+      }
+      const diff = Math.max(0, Math.round((Date.now() - latestSceneAt) / 1000));
+      sceneAge.textContent = diff === 0 ? "now" : `${diff}s ago`;
+    }
+
+    function formatTimestamp(value) {
+      if (!value) return "Waiting for data";
+      return new Date(value * 1000).toLocaleTimeString();
+    }
+
+    function cleanText(value, fallback) {
+      if (typeof value !== "string" || !value.trim()) return fallback;
+      return value.trim();
+    }
+
+    function buildVisionSignature(data) {
+      const person = data.person || {};
+      const objects = Array.isArray(data.objects) ? data.objects.map((item) => ({
+        label: item && item.label ? item.label : "",
+        confidence: typeof item.confidence === "number" ? Math.round(item.confidence * 100) : null,
+      })) : [];
+      return JSON.stringify({
+        recognized: Boolean(person.recognized),
+        face_detected: Boolean(person.face_detected),
+        name: person.name || "",
+        relationship: person.relationship || "",
+        note: person.note || "",
+        objects,
+      });
+    }
+
+
+    function renderScene(data) {
+      const visionSignature = buildVisionSignature(data);
+      if (visionSignature === lastVisionSignature) {
+        return;
+      }
+      lastVisionSignature = visionSignature;
+      currentSceneKey = visionSignature;
+      latestVisionScene = data;
+      const person = data.person || {};
+      const objects = Array.isArray(data.objects) ? data.objects : [];
+
+      latestSceneAt = Date.now();
+      timestampLabel.textContent = `Updated ${formatTimestamp(data.timestamp)}`;
+      updateAge();
+
+      const recognized = Boolean(person.recognized);
+      const faceDetected = Boolean(person.face_detected);
+
+      recognitionValue.textContent = recognized ? "Recognized" : faceDetected ? "Unrecognized" : "No face";
+      relationshipValue.textContent = cleanText(person.relationship, "--");
+      confidenceValue.textContent = typeof person.confidence === "number" ? `${Math.round(person.confidence * 100)}%` : "--";
+
+      if (recognized) {
+        const name = cleanText(person.name, "Unknown person");
+        personName.textContent = name;
+        const relationship = cleanText(person.relationship, "known contact");
+        const note = cleanText(person.note, "");
+        personSummary.textContent = note ? `${relationship}. ${note}` : `${relationship}.`;
+      } else if (faceDetected) {
+        personName.textContent = "Unknown person";
+        personSummary.textContent = "A face is visible, but the system has not matched it yet.";
+      } else {
+        personName.textContent = "No face detected";
+        personSummary.textContent = "The current frame does not contain a detectable face.";
+      }
+
+      if (!objects.length) {
+        objectList.innerHTML = '<div class="small">Nothing detected yet.</div>';
+        objectCount.textContent = "0 items";
+      } else {
+        objectCount.textContent = `${objects.length} item${objects.length === 1 ? "" : "s"}`;
+        objectList.innerHTML = objects.map((item) => {
+          const label = cleanText(item.label, "Unknown object");
+          const confidence = typeof item.confidence === "number" ? `${Math.round(item.confidence * 100)}%` : "--";
+          return `
+            <div class="object-chip">
+              <div>
+                <strong>${label}</strong>
+                <span>Live detection</span>
+              </div>
+              <span>${confidence}</span>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    function renderLlmCard(data) {
+      if (!data || data.status === "empty") {
+        llmResponse.textContent = "Waiting for advice.";
+        return;
+      }
+
+      const llmSignature = JSON.stringify({
+        card_title: data.card_title || "",
+        card_body: data.card_body || "",
+        voice_guidance: data.voice_guidance || "",
+      });
+      if (llmSignature === lastLlmSignature) {
+        return;
+      }
+      lastLlmSignature = llmSignature;
+
+      const title = cleanText(data.card_title, "LLM card");
+      const body = cleanText(data.card_body, "");
+      const voice = cleanText(data.voice_guidance, "");
+      const text = body ? `${title}. ${body}${voice ? " " + voice : ""}` : `${title}${voice ? ". " + voice : ""}`;
+      llmResponse.textContent = text;
+    }
+
+    function stopCameraPreview() {
+      clearInterval(cameraTimer);
+      cameraTimer = null;
+      if (cameraFrameUrl) {
+        URL.revokeObjectURL(cameraFrameUrl);
+        cameraFrameUrl = "";
+      }
+      cameraFrame.removeAttribute("src");
+      cameraEmpty.style.display = "flex";
+      cameraOverlay.classList.remove("open");
+      cameraOverlay.setAttribute("aria-hidden", "true");
+      cameraBtn.textContent = "View camera";
+      cameraVisible = false;
+    }
+
+    async function refreshCameraPreview() {
+      try {
+        const response = await fetch(`${VISION_FRAME_URL}?t=${Date.now()}`);
+        if (!response.ok) return;
+        const blob = await response.blob();
+        if (cameraFrameUrl) {
+          URL.revokeObjectURL(cameraFrameUrl);
+        }
+        cameraFrameUrl = URL.createObjectURL(blob);
+        cameraFrame.src = cameraFrameUrl;
+        cameraEmpty.style.display = "none";
+      } catch (error) {
+        cameraEmpty.textContent = "Camera unavailable right now.";
+        cameraEmpty.style.display = "flex";
+      }
+    }
+
+    function openCameraPreview() {
+      if (cameraVisible) {
+        stopCameraPreview();
+        return;
+      }
+      cameraVisible = true;
+      cameraBtn.textContent = "Hide camera";
+      cameraOverlay.classList.add("open");
+      cameraOverlay.setAttribute("aria-hidden", "false");
+      refreshCameraPreview();
+      clearInterval(cameraTimer);
+      cameraTimer = setInterval(refreshCameraPreview, 700);
+    }
+
+    function closeSocket() {
+      if (socket) {
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
+        socket.close();
+        socket = null;
+      }
+    }
+
+    function scheduleReconnect() {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connect, 2000);
+    }
+
+    function connect() {
+      clearTimeout(reconnectTimer);
+      closeSocket();
+
+      try {
+        socket = new WebSocket(VISION_WS_URL);
+      } catch (error) {
+        setStatus("error", "Invalid websocket URL");
+        scheduleReconnect();
+        return;
+      }
+
+      setStatus("connecting", `Connecting to vision service…`);
+
+      socket.onopen = () => setStatus("ok", "Connected to vision service");
+
+      socket.onmessage = (event) => {
+        try {
+          renderScene(JSON.parse(event.data));
+          setStatus("ok", "Live updates flowing");
+        } catch (error) {
+          setStatus("error", "Received malformed data");
+        }
+      };
+
+      socket.onerror = () => setStatus("error", "Connection error");
+
+      socket.onclose = () => {
+        setStatus("connecting", "Connection closed, retrying…");
+        scheduleReconnect();
+      };
+    }
+
+    async function fetchLlmSnapshot() {
+      try {
+        const response = await fetch(LLM_LATEST_URL);
+        const data = await response.json();
+        renderLlmCard(data);
+      } catch (error) {
+        llmResponse.textContent = "LLM service not available yet.";
+      }
+    }
+
+    async function askLLM() {
+      const question = caretakerInput.value.trim();
+      if (!question) {
+        llmResponse.textContent = "Type a question first.";
+        return;
+      }
+      submitQuestion(question, "caretaker");
+    }
+
+    cameraBtn.addEventListener("click", openCameraPreview);
+    closeCameraBtn.addEventListener("click", stopCameraPreview);
+    cameraOverlay.addEventListener("click", (event) => {
+      if (event.target === cameraOverlay) stopCameraPreview();
+    });
+    askBtn.addEventListener("click", askLLM);
+    caretakerInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        askLLM();
+      }
+    });
+
+    setInterval(updateAge, 1000);
+    setInterval(fetchLlmSnapshot, 2000);
+    connect();
+    fetchLlmSnapshot();
+    startVoiceListener();
+  </script>
+</body>
+</html>

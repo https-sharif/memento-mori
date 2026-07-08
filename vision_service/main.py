@@ -14,21 +14,25 @@ Toggle UI / terminal logging in config.py:
 import asyncio
 import logging
 import time
+from threading import Lock
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 import cv2
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from config import settings
 from models.face_recognizer import FaceRecognizer
 from models.object_detector import ObjectDetector
 from storage.embedding_store import EmbeddingStore
 from utils.camera import CameraCapture
-from utils.image import resize_if_larger
+from utils.image import bgr_to_bytes, resize_if_larger
 
 import api.recognize as rec_api
 import api.register as reg_api
@@ -55,6 +59,8 @@ camera: CameraCapture | None = None
 
 # Latest raw result (includes bboxes) — used by the display
 _last_raw: dict = {}
+_latest_frame_lock = Lock()
+_latest_frame_jpeg: bytes | None = None
 
 
 # ------------------------------------------------------------------
@@ -70,6 +76,17 @@ def _run_inference(frame: np.ndarray) -> dict:
         "objects": objects_raw,
         "timestamp": int(time.time()),
     }
+
+
+def _store_latest_frame(frame: np.ndarray) -> None:
+    global _latest_frame_jpeg
+    with _latest_frame_lock:
+        _latest_frame_jpeg = bgr_to_bytes(frame)
+
+
+def _get_latest_frame() -> bytes | None:
+    with _latest_frame_lock:
+        return _latest_frame_jpeg
 
 
 def _clean_result(raw: dict) -> dict:
@@ -208,6 +225,8 @@ async def _vision_loop() -> None:
                     cv2.waitKey(1)
                 continue
 
+            _store_latest_frame(frame)
+
             # ── Inference (time-gated) ─────────────────────────────
             now = time.monotonic()
             if now - last_infer_t >= settings.ws_interval:
@@ -326,6 +345,14 @@ app.include_router(rec_router, tags=["Recognition"])
 app.include_router(reg_router, tags=["Registration"])
 app.include_router(ws_router, tags=["WebSocket"])
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/frame")
+async def frame():
+    latest = _get_latest_frame()
+    if latest is None:
+        return Response(status_code=503, content=b"no frame available")
+    return Response(content=latest, media_type="image/jpeg")
 
 
 if __name__ == "__main__":

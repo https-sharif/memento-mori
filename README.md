@@ -41,6 +41,8 @@ pip install -r requirements.txt
 python main.py
 ```
 
+Both services will load a root `.env` file automatically. Put local secrets like `GEMINI_API_KEY` there instead of hardcoding them in source.
+
 **Windows**
 ```bat
 cd vision_service
@@ -114,6 +116,15 @@ async def listen():
             result = json.loads(msg)  # fires every ~1 second
 ```
 
+To run the LLM consumer against the live vision stream:
+
+```bash
+cd llm-service
+export GEMINI_API_KEY=...
+export VISION_WS_URL=ws://localhost:8000/ws
+python main.py
+```
+
 Use `person["name"]` as the key to retrieve caregiver notes from your vector store.
 
 ---
@@ -147,6 +158,14 @@ const data = await res.json();
 ```
 
 CORS is open — any origin works.
+
+## Lightweight frontend
+
+Open [frontend/index.html](frontend/index.html) directly in a browser or serve the `frontend/` folder with any static server. It listens to `ws://localhost:8000/ws` and can also pull a one-shot snapshot from `POST /recognize`.
+
+To display the LLM card, start the LLM service as well. The frontend polls `http://localhost:8001/latest` by default.
+
+The page also includes a caretaker question box for text input, plus a button that opens a closeable live camera preview.
 
 ---
 

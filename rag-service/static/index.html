@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Memory Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="kicker">Dementia Memory Assistant</p>
+        <h1>Gentle orientation, in real time.</h1>
+      </div>
+      <div class="status-pill" id="connection-status">
+        <span class="status-dot"></span>
+        Connecting
+      </div>
+    </header>
+
+    <section class="hero-grid">
+      <article class="memory-card" aria-live="polite">
+        <div class="card-topline">
+          <span class="badge">Memory Card</span>
+          <span id="last-updated">Waiting for camera</span>
+        </div>
+
+        <div class="person-avatar" aria-hidden="true">
+          <span id="avatar-initial">♡</span>
+        </div>
+
+        <h2 id="card-title">Waiting for camera...</h2>
+        <p id="card-body">When the scene changes, a calm reminder will appear here.</p>
+
+        <div class="voice-box">
+          <div>
+            <p class="voice-label">Voice guidance</p>
+            <p id="voice-text">No spoken message yet.</p>
+          </div>
+          <button class="round-button" id="replay" title="Replay voice" aria-label="Replay voice">▶</button>
+        </div>
+      </article>
+
+      <aside class="side-panel">
+        <div class="mini-card">
+          <span class="mini-icon">📷</span>
+          <div>
+            <h3>Live scene</h3>
+            <p>Vision JSON updates the card only when a person or object changes.</p>
+          </div>
+        </div>
+        <div class="mini-card">
+          <span class="mini-icon">🔊</span>
+          <div>
+            <h3>Audio first</h3>
+            <p>The browser reads the gentle guidance aloud for a simple demo.</p>
+          </div>
+        </div>
+        <button class="secondary-button" id="demo-cue">Send demo cue</button>
+      </aside>
+    </section>
+
+
+    <section class="rag-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="kicker">RAG Chatbot</p>
+          <h2>Turn patient memory into a structured card</h2>
+        </div>
+        <span class="soft-tag">Retrieval → LLM → JSON</span>
+      </div>
+
+      <div class="rag-layout">
+        <div class="input-row stacked">
+          <textarea id="rag-input" placeholder="Example: Sarah just walked in carrying Arthur's medicine bottle. Generate a calming card."></textarea>
+          <button id="rag-generate">Generate memory card</button>
+        </div>
+        <div class="retrieval-card" id="retrieval-card">
+          <p class="empty-state">Retrieved patient context will appear here before the LLM output.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="caregiver-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="kicker">Caregiver Support</p>
+          <h2>Need help with a situation?</h2>
+        </div>
+        <span class="soft-tag">Non-medical guidance</span>
+      </div>
+
+      <div class="input-row">
+        <textarea id="caregiver-input" placeholder="Example: Arthur is anxious and keeps asking where his daughter is..."></textarea>
+        <button id="analyze">Analyze</button>
+      </div>
+
+      <div class="analysis-card is-empty" id="analysis-card">
+        <p class="empty-state">The analysis result will appear here.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

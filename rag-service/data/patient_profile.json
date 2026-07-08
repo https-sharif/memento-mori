@@ -1,0 +1,18 @@
+{
+  "patient_name": "Arthur",
+  "condition_stage": "advanced Alzheimer's",
+  "baseline": "Gets easily startled by sudden changes. Needs reassurance, simple wording, and calm repetition.",
+  "family": [
+    {
+      "name": "Sarah",
+      "relationship": "Daughter",
+      "note": "Visits on weekends. Arthur knows her voice and feels calmer when reminded she is family."
+    }
+  ],
+  "preferences": [
+    "Gentle voice",
+    "Short sentences",
+    "No clinical language",
+    "Large high-contrast card text"
+  ]
+}
