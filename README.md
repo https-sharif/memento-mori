@@ -1,5 +1,9 @@
 # Dementia Memory Assistant
 
+[![CI](https://github.com/https-sharif/memento-mori/actions/workflows/ci.yml/badge.svg)](https://github.com/https-sharif/memento-mori/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 A prototype memory-support system for people living with dementia. A camera
 recognises familiar faces and everyday objects; a language model turns what it
 sees into a short, calm memory card — *"Sarah (Daughter). She visits every
@@ -46,6 +50,50 @@ practical, grounded suggestions.
   (Ollama + Chroma). Not connected to the pipeline above.
 
 Full detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
+## Design notes
+
+The decisions that were not obvious, and the reasoning behind them.
+
+**LLM calls are async, and that is load-bearing.** `google-genai` exposes both a
+sync and an async surface. The sync one, called from inside `async def`, blocks
+the entire event loop for the length of the API round trip — the vision
+websocket stops draining, frames back up, and `/health` stops answering. Every
+call goes through `client.aio.models.generate_content`, and `mock_llm` mirrors
+both surfaces so the offline path exercises the same code path as production.
+
+**The vision stream is deduplicated before it reaches the model.** `/ws` pushes a
+frame every second — roughly 86,000 model calls a day if forwarded naively, most
+of them re-narrating a room that has not changed. The backend hashes a *scene
+signature*: who is recognised, their relationship, and the sorted object labels.
+Confidence scores and timestamps are deliberately excluded, because they jitter
+on every frame and would make each signature unique. The model is called only
+when that signature actually changes.
+
+**Two output slots, not one.** The patient-facing card and the caregiver's answer
+live in separate slots in `store.py`, because they have different lifecycles: the
+card refreshes as the room changes, while an answer must survive until it is
+read. Collapsing them means a 2-second poll wipes an answer the caregiver is
+still reading — which is precisely the bug this repo shipped with.
+
+**Failure degrades to calm, not to blank.** `response.parsed` is `None` on a
+safety block, quota exhaustion, or malformed JSON. For someone with dementia, a
+blank screen or a stack trace is worse than a slightly stale message, so the
+perception loop falls back to the last good card or a fixed reassuring one. The
+caregiver endpoints — whose reader can interpret an error — return a 503 with a
+readable message instead. Different users, different failure modes.
+
+**Retrieval is keyword overlap, not embeddings.** The patient profile is a few
+dozen facts. A vector store would add a service dependency, an index build, and
+startup latency to beat a linear scan over data that fits on one screen. The
+retrieval interface is narrow enough to swap if a profile ever outgrows it.
+
+**The whole stack runs with no API key and no camera.** `MOCK_LLM=true` and
+`mock_vision.py` serve the real contracts with rule-based responses. That is what
+makes the project reviewable by a stranger in two minutes, and what lets CI
+verify endpoint behaviour on every push without a secret or a device.
 
 ---
 
@@ -228,6 +276,24 @@ camera, no network. CI runs it on Python 3.10, 3.11, and 3.12.
 
 `vision_service` is deliberately excluded from CI: its InsightFace/YOLO/OpenCV
 stack is heavy and its endpoints need a physical camera.
+
+---
+
+## Known gaps
+
+What a reviewer should know is missing, and where this would go next.
+
+- **Recognition is single-machine.** Embeddings live in a JSON file on the host
+  that captured them. Anything multi-device needs a real store plus an enrolment
+  flow with revocation.
+- **Nothing is authenticated.** Acceptable on localhost, disqualifying anywhere
+  else. Auth belongs in front of both services before the bind address widens.
+- **`vision_service` has no automated tests.** Its stack needs a camera, so CI
+  skips it and correctness there rests on manual runs. Separating frame
+  processing from the capture loop would make most of it testable without
+  hardware.
+- **Retrieval will not scale with the profile.** Keyword overlap is the right
+  call at a few dozen facts and the wrong one at a thousand.
 
 ## Documentation
 
