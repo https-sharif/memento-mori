@@ -21,21 +21,27 @@ env/
 .env
 local_settings.py
 
-# IDE
+# IDE / agent tooling
 .vscode/
 .idea/
+.claude/
 
-# Testing/Coverage
+# Testing / linting caches
 .pytest_cache/
+.ruff_cache/
 .coverage
 htmlcov/
-.tox/   
+.tox/
 
 # OS
 .DS_Store
+**/.DS_Store
 
 # Face embeddings — biometric data, never commit
 vision_service/storage/data/embeddings.json
+
+# Offline chatbot's local store — caregiver-entered personal data + Chroma index
+**/memory_data/
 
 # Downloaded model weights — large files, re-downloaded on first run
 *.pt
