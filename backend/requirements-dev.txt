@@ -1,0 +1,6 @@
+# Test and lint tooling for the backend suite.
+# The suite is fully offline (MOCK_LLM=true), so nothing here pulls in Gemini,
+# a camera, or the vision_service ML stack.
+pytest>=8.0.0
+httpx>=0.27.0        # required by fastapi.testclient
+ruff>=0.6.0
