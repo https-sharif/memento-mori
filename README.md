@@ -57,54 +57,29 @@ at the room — so the patient never has to type, tap, or ask.
 
 ## Design notes
 
-The decisions that were not obvious, and the reasoning behind them.
-
-**LLM calls are async, and that is load-bearing.** `google-genai` exposes both a
-sync and an async surface. The sync one, called from inside `async def`, blocks
-the entire event loop for the length of the API round trip — the vision
-websocket stops draining, frames back up, and `/health` stops answering. Every
-call goes through `client.aio.models.generate_content`, and `mock_llm` mirrors
-both surfaces so the offline path exercises the same code path as production.
-
-**The vision stream is deduplicated before it reaches the model.** `/ws` pushes a
-frame every second — roughly 86,000 model calls a day if forwarded naively, most
-of them re-narrating a room that has not changed. The backend hashes a *scene
-signature*: who is recognised, their relationship, and the sorted object labels.
-Confidence scores and timestamps are deliberately excluded, because they jitter
-on every frame and would make each signature unique. The model is called only
-when that signature actually changes.
-
-**Two output slots, not one.** The patient-facing card and the caregiver's answer
-live in separate slots in `store.py`, because they have different lifecycles: the
-card refreshes as the room changes, while an answer must survive until it is
-read. Collapsing them means a 2-second poll wipes an answer the caregiver is
-still reading — which is precisely the bug this repo shipped with.
-
-**Failure degrades to calm, not to blank.** `response.parsed` is `None` on a
-safety block, quota exhaustion, or malformed JSON. For someone with dementia, a
-blank screen or a stack trace is worse than a slightly stale message, so the
-perception loop falls back to the last good card or a fixed reassuring one. The
-caregiver endpoints — whose reader can interpret an error — return a 503 with a
-readable message instead. Different users, different failure modes.
-
-**Retrieval is keyword overlap, not embeddings.** The patient profile is a few
-dozen facts. A vector store would add a service dependency, an index build, and
-startup latency to beat a linear scan over data that fits on one screen. The
-retrieval interface is narrow enough to swap if a profile ever outgrows it.
-
-**The whole stack runs with no API key and no camera.** `MOCK_LLM=true` and
-`mock_vision.py` serve the real contracts with rule-based responses. That is what
-makes the project reviewable by a stranger in two minutes, and what lets CI
-verify endpoint behaviour on every push without a secret or a device.
+- **Async LLM calls.** `google-genai`'s sync surface blocks the event loop when
+  called from `async def` — the vision websocket stops draining and `/health`
+  stops answering. Everything goes through `client.aio`.
+- **Scene dedup before the model.** `/ws` pushes at 1 Hz, about 86,000 calls a day
+  if forwarded naively. The backend hashes who is recognised plus the sorted
+  object labels, excluding confidence and timestamps since those jitter on every
+  frame. Gemini is called only when that signature changes.
+- **Separate output slots.** The patient card and the caregiver's answer have
+  different lifecycles, so sharing one slot lets a 2-second poll wipe an answer
+  mid-read.
+- **Failure degrades to calm.** `response.parsed` is `None` on a safety block or
+  malformed JSON. The patient path falls back to the last good card; caregiver
+  endpoints return a readable 503 instead.
+- **Keyword retrieval, not embeddings.** A few dozen profile facts do not justify
+  a vector store's dependency and startup cost.
+- **Runs with no key and no camera.** `MOCK_LLM=true` and `mock_vision.py` serve
+  the real contracts, which is what makes CI possible without a secret or a device.
 
 ---
 
 ## Quickstart
 
-Requires **Python 3.10+** (the code uses `X | None` type syntax throughout).
-
-You can try the whole thing **without an API key and without a camera** — start
-here if you just want to see it work.
+Requires **Python 3.10+**. Runs with no API key and no camera.
 
 ### 1. Backend, in mock mode
 
@@ -115,9 +90,8 @@ pip install -r requirements.txt
 MOCK_LLM=true uvicorn main:app --port 8001
 ```
 
-`MOCK_LLM=true` swaps Gemini for canned, rule-based responses. No key, no
-network calls, no rate limit. Card titles are labelled `(mock)` so the mode is
-never ambiguous.
+`MOCK_LLM=true` swaps Gemini for rule-based responses. Card titles are labelled
+`(mock)` so the mode is never ambiguous.
 
 ### 2. A fake camera, in a second terminal
 
@@ -129,7 +103,7 @@ python mock_vision.py        # serves the real ws://localhost:8000/ws contract
 ### 3. Open the page
 
 Open `frontend/index.html` in a browser. A memory card appears within a couple
-of seconds, and the caregiver question box works.
+of seconds.
 
 On Windows, use `.venv\Scripts\activate` in place of `source .venv/bin/activate`.
 
@@ -225,30 +199,17 @@ curl -s -X POST http://localhost:8001/ask \
   -d '{"question":"How do I keep him calm at dinner?"}'
 ```
 
-Subscribing to the vision stream directly, if you want to build something else
-on top:
-
-```python
-import asyncio, json, websockets
-
-async def listen():
-    async with websockets.connect("ws://localhost:8000/ws") as ws:
-        async for msg in ws:
-            scene = json.loads(msg)   # ~1 per second
-```
-
 ---
 
 ## The patient profile
 
 `patient_profile.json` at the repository root is the single source of patient
-facts — name, condition, family, communication preferences. The backend
-retrieves matching lines from it and passes only those to the model. Edit this
-file, not code, to change who the patient is.
+facts — name, condition, family, communication preferences. Edit this file, not
+code, to change who the patient is.
 
-**The file shipped here is sample data.** "Arthur" is fictional, invented for
-demonstration. The repository contains no real patient information, and none
-should be added to it — see [DISCLAIMER.md](DISCLAIMER.md).
+**The file shipped here is sample data.** "Arthur" is fictional. The repository
+contains no real patient information, and none should be added to it — see
+[DISCLAIMER.md](DISCLAIMER.md).
 
 ---
 
@@ -278,24 +239,6 @@ camera, no network. CI runs it on Python 3.10, 3.11, and 3.12.
 
 `vision_service` is deliberately excluded from CI: its InsightFace/YOLO/OpenCV
 stack is heavy and its endpoints need a physical camera.
-
----
-
-## Known gaps
-
-What a reviewer should know is missing, and where this would go next.
-
-- **Recognition is single-machine.** Embeddings live in a JSON file on the host
-  that captured them. Anything multi-device needs a real store plus an enrolment
-  flow with revocation.
-- **Nothing is authenticated.** Acceptable on localhost, disqualifying anywhere
-  else. Auth belongs in front of both services before the bind address widens.
-- **`vision_service` has no automated tests.** Its stack needs a camera, so CI
-  skips it and correctness there rests on manual runs. Separating frame
-  processing from the capture loop would make most of it testable without
-  hardware.
-- **Retrieval will not scale with the profile.** Keyword overlap is the right
-  call at a few dozen facts and the wrong one at a thousand.
 
 ## Documentation
 
