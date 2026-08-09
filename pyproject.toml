@@ -1,0 +1,43 @@
+# Tool configuration only. This repository is a set of standalone services, not
+# an installable package, so there is deliberately no [project] table.
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+# Backend modules import each other flatly (`import store`, `from models import ...`)
+# because each service runs with its own directory as the working directory. Listing
+# it here is what lets the import sorter tell those apart from third-party packages.
+src = [".", "backend"]
+
+extend-exclude = [
+    ".venv",
+    # Neither of these is lint-clean yet, and neither is exercised by CI. Removing
+    # them from this list is a good first contribution.
+    "offline-chatbot",   # standalone Streamlit prototype, unrelated to the pipeline
+    "vision_service",    # heavy CV stack; needs a camera to run, so CI skips it too
+]
+
+[tool.ruff.lint]
+# Default rules (pycodestyle errors + pyflakes) plus import sorting and a few
+# bug-catchers. Kept deliberately small: the point is to catch real mistakes,
+# not to enforce a house style on a prototype.
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+ignore = [
+    "B008",  # FastAPI's Depends()/Query() defaults are function calls by design
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "gemini_client", "main", "mock_llm", "mock_vision", "models",
+    "patient_memory", "perception", "store",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests must set MOCK_LLM and sys.path before importing any backend module
+# (gemini_client exits at import time without a key), so imports come after code.
+"backend/tests/*" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+addopts = "-q"

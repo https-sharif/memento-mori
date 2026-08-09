@@ -33,6 +33,9 @@
     .progress { font-size: 0.85rem; color: #888; }
     .progress span { color: #0f766e; font-weight: 600; }
 
+    .consent { font-size: 0.82rem; line-height: 1.5; padding: 0.7rem 0.85rem; border-radius: 10px; background: #fff7ed; border: 1px solid #fed7aa; color: #7c2d12; }
+    .consent code { background: rgba(124, 45, 18, 0.08); padding: 0 0.25rem; border-radius: 4px; }
+
     button { padding: 0.7rem 1.2rem; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
     #captureBtn { background: #2563eb; color: #fff; width: 100%; }
@@ -85,6 +88,12 @@
       </div>
 
       <p class="progress">Photos captured: <span id="countLabel">0</span> / 5</p>
+
+      <p class="consent">
+        <strong>Consent required.</strong> This stores a face embedding — biometric data — on this
+        machine. Only register someone who has knowingly agreed. Delete anytime from the list below.
+        See <code>PRIVACY.md</code> in the repository.
+      </p>
 
       <button id="captureBtn">📸 Capture Photo</button>
       <button id="submitBtn" disabled>✅ Register Person</button>
@@ -212,20 +221,48 @@ async function loadPeople() {
     const data = await res.json();
     const people = data.people || [];
     if (people.length === 0) {
-      container.innerHTML = '<em style="color:#888">No one registered yet.</em>';
+      container.replaceChildren(emptyNote('No one registered yet.', '#888'));
       return;
     }
-    container.innerHTML = people.map(p => `
-      <div class="person-card">
-        <div class="person-info">
-          <strong>${p.name}</strong>
-          <div class="rel">${p.relationship}${p.note ? ' · ' + p.note : ''} · ${p.num_embeddings} photo(s)</div>
-        </div>
-        <button class="del-btn" onclick="deletePerson('${p.name}')">Delete</button>
-      </div>`).join('');
+    // Built as DOM nodes rather than an innerHTML string: a name is caregiver-entered
+    // text and must never be parsed as markup or spliced into an inline handler.
+    container.replaceChildren(...people.map(personCard));
   } catch {
-    container.innerHTML = '<em style="color:#f87171">Could not load people list.</em>';
+    container.replaceChildren(emptyNote('Could not load people list.', '#f87171'));
   }
+}
+
+function personCard(p) {
+  const card = document.createElement('div');
+  card.className = 'person-card';
+
+  const info = document.createElement('div');
+  info.className = 'person-info';
+
+  const name = document.createElement('strong');
+  name.textContent = p.name;
+
+  const rel = document.createElement('div');
+  rel.className = 'rel';
+  const note = p.note ? ` · ${p.note}` : '';
+  rel.textContent = `${p.relationship}${note} · ${p.num_embeddings} photo(s)`;
+
+  info.append(name, rel);
+
+  const del = document.createElement('button');
+  del.className = 'del-btn';
+  del.textContent = 'Delete';
+  del.addEventListener('click', () => deletePerson(p.name));
+
+  card.append(info, del);
+  return card;
+}
+
+function emptyNote(text, color) {
+  const em = document.createElement('em');
+  em.style.color = color;
+  em.textContent = text;
+  return em;
 }
 
 async function deletePerson(name) {
