@@ -47,7 +47,9 @@ practical, grounded suggestions.
 
 Full detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
----
+Most "AI for dementia" demos stop at a chatbot. We wanted something that
+works passively, in the background, through a camera that's already pointed
+at the room — so the patient never has to type, tap, or ask.
 
 ## Quickstart
 
