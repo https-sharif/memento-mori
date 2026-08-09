@@ -1,6 +1,6 @@
 # Vision Service — Internals
 
-Face recognition and object detection backend. Runs fully offline on a MacBook.
+Face recognition and object detection backend. Runs fully offline on macOS, Linux, and Windows — no image, frame, or embedding is ever transmitted anywhere.
 
 ---
 
@@ -11,6 +11,10 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
 ```
+
+Serves on <http://localhost:8000>. A webcam is required. The first run downloads the InsightFace and YOLO weights; after that it needs no network at all.
+
+The bind address defaults to `127.0.0.1` because **no endpoint here is authenticated** — anyone who can reach the port can pull a live camera still from `GET /frame`, enrol a face, or delete a registered person. Override with `VISION_HOST` / `VISION_PORT` only on a network you trust.
 
 ---
 
@@ -35,7 +39,7 @@ vision_service/
 │   └── websocket_handler.py # WS /ws + connection manager
 ├── static/
 │   └── register.html        # face registration UI
-└── train/                   # custom model training (see Fine-Tune.md inside)
+└── train/                   # custom model training scripts (optional)
 ```
 
 ---
@@ -78,11 +82,15 @@ enable_terminal_log = True         # print results to terminal
 
 ## Embeddings storage
 
-Stored in `storage/data/embeddings.json`. Plain JSON — human-readable, no database needed.
+Stored in `storage/data/embeddings.json`. Plain JSON — human-readable, no database needed. The file is gitignored.
 
 Structure: per person, a list of raw embeddings (preserved for fallback matching) and a pre-computed average embedding (used for fast lookup). Average is recomputed from the raw list on every write and on startup — it's never persisted separately.
 
-To wipe all registered faces: `rm storage/data/embeddings.json`
+**These embeddings are biometric identifiers.** Register only people who have knowingly agreed, and read [../PRIVACY.md](../PRIVACY.md) before collecting any. There is no encryption at rest, no audit log, and no retention limit.
+
+Remove one person: `curl -X DELETE http://localhost:8000/people/NAME`
+
+Wipe all registered faces: `rm storage/data/embeddings.json` — no backup, no recovery.
 
 ---
 

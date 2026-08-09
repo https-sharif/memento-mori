@@ -2,10 +2,14 @@
 Vision Service — entry point.
 
 Run with:
-    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
 Or via the helper script:
     python main.py
+
+No endpoint here is authenticated and GET /frame serves live camera stills, so
+the default bind is 127.0.0.1. Override with VISION_HOST / VISION_PORT only on a
+network you trust.
 
 Toggle UI / terminal logging in config.py:
     enable_ui           = True / False
@@ -14,6 +18,7 @@ Toggle UI / terminal logging in config.py:
 import asyncio
 import logging
 import time
+from pathlib import Path
 from threading import Lock
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -344,7 +349,8 @@ app.add_middleware(
 app.include_router(rec_router, tags=["Recognition"])
 app.include_router(reg_router, tags=["Registration"])
 app.include_router(ws_router, tags=["WebSocket"])
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Anchored to this file, not the CWD, so the service starts from any directory.
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 
 @app.get("/frame")
@@ -356,5 +362,13 @@ async def frame():
 
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+    # Defaults to localhost: none of these endpoints are authenticated, and
+    # /frame serves live camera stills. Set VISION_HOST=0.0.0.0 only on a
+    # network you trust.
+    host = os.environ.get("VISION_HOST", "127.0.0.1")
+    port = int(os.environ.get("VISION_PORT", "8000"))
+    uvicorn.run("main:app", host=host, port=port, reload=True)
